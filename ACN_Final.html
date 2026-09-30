@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduCart - Student BNPL E-Commerce</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0f172a; color: #f1f5f9; }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .toast-enter { animation: slideIn 0.35s cubic-bezier(.21,1.02,.73,1) forwards; }
+    @keyframes slideIn { from { opacity:0; transform:translateX(110%); } to { opacity:1; transform:translateX(0); } }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:#1e293b; }
+    ::-webkit-scrollbar-thumb { background:#475569; border-radius:4px; }
+    ::-webkit-scrollbar-thumb:hover { background:#64748b; }
+    .donut-segment { transition: stroke-dashoffset 0.6s ease; }
+    .bar-chart-bar { transition: height 0.5s ease; }
+    .nav-active { color: #818cf8; border-bottom: 2px solid #818cf8; }
+  </style>
+</head>
+<body class="antialiased">
+  <div class="min-h-screen flex flex-col">
+    <div id="app-root" class="flex-grow"></div>
+    <div id="toast-root" class="fixed bottom-6 right-6 z-[200] flex flex-col gap-3 pointer-events-none"></div>
+  </div>
+
+<script>
+// ============================================================
+// PRODUCTS (35+)
+// ============================================================
+const products = [
+  { id:1,  name:"Noise-Cancelling Headphones", price:299.99, category:"Audio",       img:"🎧" },
+  { id:2,  name:"Bluetooth Speaker",           price:89.99,  category:"Audio",       img:"🔊" },
+  { id:3,  name:"In-Ear Earbuds Pro",          price:129.99, category:"Audio",       img:"🎵" },
+  { id:4,  name:"Textbook: Macroeconomics",    price:120.00, category:"Books",       img:"📚" },
+  { id:5,  name:"Textbook: Data Structures",   price:95.00,  category:"Books",       img:"📙" },
+  { id:6,  name:"E-Reader Paperwhite",         price:129.99, category:"Books",       img:"📖" },
+  { id:7,  name:"Smart Watch Series 5",        price:199.99, category:"Wearables",   img:"⌚" },
+  { id:8,  name:"Fitness Tracker Band",        price:79.99,  category:"Wearables",   img:"💪" },
+  { id:9,  name:"Designer Sneakers",           price:150.00, category:"Fashion",     img:"👟" },
+  { id:10, name:"Heavy Duty Backpack",         price:65.00,  category:"Fashion",     img:"🎒" },
+  { id:11, name:"Denim Jacket",                price:89.99,  category:"Fashion",     img:"🧥" },
+  { id:12, name:"Baseball Cap",                price:29.99,  category:"Fashion",     img:"🧢" },
+  { id:13, name:"Gaming Laptop Pro",           price:1299.99,category:"Computers",   img:"💻" },
+  { id:14, name:"10-inch Tablet",              price:349.99, category:"Computers",   img:"📱" },
+  { id:15, name:"External Hard Drive 2TB",     price:109.99, category:"Computers",   img:"💾" },
+  { id:16, name:"Mechanical Keyboard",         price:149.99, category:"Computers",   img:"⌨️" },
+  { id:17, name:"Wireless Ergonomic Mouse",    price:29.99,  category:"Computers",   img:"🖱️" },
+  { id:18, name:"27-inch Monitor",             price:399.99, category:"Computers",   img:"🖥️" },
+  { id:19, name:"USB-C Hub 7-in-1",            price:49.99,  category:"Computers",   img:"🔌" },
+  { id:20, name:"Study Desk Lamp",             price:45.00,  category:"Dorm",        img:"💡" },
+  { id:21, name:"Ergonomic Desk Chair",        price:199.99, category:"Furniture",   img:"🪑" },
+  { id:22, name:"Foldable Study Table",        price:89.99,  category:"Furniture",   img:"🪵" },
+  { id:23, name:"Cold Brew Coffee Maker",      price:79.99,  category:"Dorm",        img:"☕" },
+  { id:24, name:"Insulated Water Bottle",      price:25.00,  category:"Dorm",        img:"💧" },
+  { id:25, name:"Mini Fridge 20L",             price:119.99, category:"Dorm",        img:"🧊" },
+  { id:26, name:"Scientific Calculator",       price:89.99,  category:"Supplies",    img:"🖩" },
+  { id:27, name:"Drawing Tablet",              price:239.99, category:"Supplies",    img:"🎨" },
+  { id:28, name:"Wireless Charger Pad",        price:39.99,  category:"Accessories", img:"⚡" },
+  { id:29, name:"Portable Power Bank 20000mAh",price:59.99,  category:"Accessories", img:"🔋" },
+  { id:30, name:"Phone Stand & Holder",        price:19.99,  category:"Accessories", img:"📲" },
+  { id:31, name:"LED Desk Fan",                price:34.99,  category:"Dorm",        img:"🌀" },
+  { id:32, name:"Whiteboard 60x90cm",          price:54.99,  category:"Supplies",    img:"📋" },
+  { id:33, name:"Premium Notebook Set",        price:22.99,  category:"Supplies",    img:"📓" },
+  { id:34, name:"Webcam HD 1080p",             price:74.99,  category:"Computers",   img:"📷" },
+  { id:35, name:"Smart Desk Organiser",        price:44.99,  category:"Dorm",        img:"🗂️" },
+];
+
+// ============================================================
+// APP STATE
+// ============================================================
+let view          = 'home';
+let cart          = [];
+let bnplPlans     = [];
+let manualBnpl    = [];
+let completedOrders = [];
+let budget        = 600;
+let isEditingBudget = false;
+let checkoutMethod= 'bnpl';
+let bnplTerms     = 4;
+let selectedCategory = 'All';
+let toasts        = [];
+let trackerTab    = 'ongoing';
+let insightsPeriod= 'month';
+let tipsTab       = 'basics';
+let addForm = { category:'', store:'', amount:'', installments:'4', date:'' };
+
+// ============================================================
+// TOAST
+// ============================================================
+function addToast(msg, type='success') {
+  const id = Date.now() + Math.random();
+  toasts.push({ id, msg, type });
+  renderToasts();
+  setTimeout(()=>{ toasts=toasts.filter(t=>t.id!==id); renderToasts(); }, 3500);
+}
+function renderToasts() {
+  document.getElementById('toast-root').innerHTML = toasts.map(t=>`
+    <div class="toast-enter bg-slate-800 border-l-4 ${t.type==='success'?'border-green-500':'border-indigo-500'} flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl w-72 pointer-events-auto">
+      <span class="${t.type==='success'?'text-green-400':'text-indigo-400'} text-xl">${t.type==='success'?'✓':'ℹ'}</span>
+      <span class="text-sm font-medium text-white">${t.msg}</span>
+    </div>`).join('');
+}
+
+// ============================================================
+// STATE MODIFIERS
+// ============================================================
+function setView(v) { view=v; render(); window.scrollTo(0,0); }
+function setCategory(c){ selectedCategory=c; render(); }
+function setCheckoutMethod(m){ checkoutMethod=m; render(); }
+function setBnplTerms(t){ bnplTerms=t; render(); }
+function setTrackerTab(t){ trackerTab=t; render(); }
+function setInsightsPeriod(p){ insightsPeriod=p; render(); }
+function setTipsTab(t){ tipsTab=t; render(); }
+function toggleEditBudget(){ isEditingBudget=!isEditingBudget; render(); }
+
+function addToCart(id) {
+  const p=products.find(p=>p.id===id);
+  cart.push(p);
+  addToast(`${p.name} added to cart!`,'success');
+  render();
+}
+function removeFromCart(idx){ cart.splice(idx,1); render(); }
+
+function saveBudget(){
+  const v=parseFloat(document.getElementById('budget-input').value);
+  if(!isNaN(v)&&v>0){ budget=v; isEditingBudget=false; addToast('Budget updated!','success'); render(); }
+  else addToast('Enter a valid number.','info');
+}
+
+function handleCheckout(){
+  const total=cart.reduce((s,i)=>s+i.price,0);
+  const fee=bnplTerms===6?total*0.05:0;
+  const final=total+fee;
+  const inst=final/bnplTerms;
+  const date=new Date().toLocaleDateString();
+  if(checkoutMethod==='bnpl'){
+    bnplPlans.push({ id:Date.now(), total:final, installment:inst, remaining:final-inst, paymentsLeft:bnplTerms-1, terms:bnplTerms, items:[...cart], date, category:cart[0]?.category||'Mixed', store:'EduCart' });
+    addToast(`Paid $${inst.toFixed(2)} today. ${bnplTerms-1} payments left.`,'success');
+  } else {
+    completedOrders.unshift({ id:Date.now(), total, type:'Paid in Full', items:[...cart], date });
+    addToast('Paid in full!','success');
+  }
+  cart=[]; setView('dashboard');
+}
+
+function makeBnplPayment(id, isManual=false){
+  const arr=isManual?manualBnpl:bnplPlans;
+  const plan=arr.find(p=>p.id===id);
+  if(!plan) return;
+  plan.remaining-=plan.installment;
+  plan.paymentsLeft-=1;
+  addToast(`$${plan.installment.toFixed(2)} payment made!`,'success');
+  if(plan.paymentsLeft<=0||plan.remaining<=0.01){
+    const src=isManual?manualBnpl:bnplPlans;
+    const idx=src.findIndex(p=>p.id===id);
+    src.splice(idx,1);
+    completedOrders.unshift({ id:plan.id, total:plan.total, type:'BNPL Completed', items:plan.items||[{name:plan.productName}], date:plan.date, completionDate:new Date().toLocaleDateString() });
+    addToast('Plan complete! Moved to history.','success');
+  }
+  render();
+}
+
+function payOffAll(id, isManual=false){
+  const arr=isManual?manualBnpl:bnplPlans;
+  const idx=arr.findIndex(p=>p.id===id);
+  if(idx===-1) return;
+  const plan=arr[idx];
+  arr.splice(idx,1);
+  completedOrders.unshift({ id:plan.id, total:plan.total, type:'BNPL Paid Early', items:plan.items||[{name:plan.productName}], date:plan.date, completionDate:new Date().toLocaleDateString() });
+  addToast(`Paid off $${plan.remaining.toFixed(2)} early!`,'success');
+  render();
+}
+
+function submitAddForm(){
+  const amt=parseFloat(addForm.amount);
+  const inst=parseInt(addForm.installments)||4;
+  if(!addForm.category||!addForm.store||isNaN(amt)||amt<=0||!addForm.date){
+    addToast('Please fill in all fields.','info'); return;
+  }
+  const installment=amt/inst;
+  manualBnpl.push({
+    id:Date.now(), total:amt, installment, remaining:amt-installment,
+    paymentsLeft:inst-1, terms:inst, date:addForm.date,
+    productName:`${addForm.category} from ${addForm.store}`,
+    category:addForm.category, store:addForm.store,
+    items:[{name:`${addForm.category} from ${addForm.store}`}]
+  });
+  addToast(`BNPL purchase of $${amt.toFixed(2)} recorded!`,'success');
+  addForm={ category:'', store:'', amount:'', installments:'4', date:'' };
+  setView('tracker');
+}
+
+// ============================================================
+// COMPUTED HELPERS
+// ============================================================
+function allActivePlans(){ return [...bnplPlans, ...manualBnpl]; }
+
+function spendingByCategory(){
+  const map={};
+  const all=[...bnplPlans, ...manualBnpl].map(p=>({ cat:p.category||'Other', total:p.total }));
+  completedOrders.forEach(o=>{
+    const cat=o.items[0]?.category||o.items[0]?.name?.split(' from ')[0]||'Other';
+    map[cat]=(map[cat]||0)+o.total;
+  });
+  all.forEach(x=>{ map[x.cat]=(map[x.cat]||0)+x.total; });
+  return map;
+}
+
+function totalSpending(){
+  return Object.values(spendingByCategory()).reduce((s,v)=>s+v,0);
+}
+
+// ============================================================
+// MAIN RENDER
+// ============================================================
+function render(){
+  const active=allActivePlans();
+  const totalCommit=active.reduce((s,p)=>s+p.installment,0);
+  document.getElementById('app-root').innerHTML = `
+    <nav class="bg-slate-950 border-b border-slate-800 sticky top-0 z-50 shadow-xl">
+      <div class="container mx-auto px-4 py-3 flex justify-between items-center flex-wrap gap-3">
+        <div class="text-2xl font-black text-indigo-400 cursor-pointer select-none" onclick="setView('home')">🎓 EduCart</div>
+        <div class="flex items-center gap-1 text-sm font-semibold overflow-x-auto">
+          ${navBtn('home','🏠 Home')}
+          ${navBtn('store','🛍️ Shop')}
+          ${navBtn('addbnpl','➕ Add BNPL')}
+          ${navBtn('tracker','📅 Tracker')}
+          ${navBtn('insights','📊 Insights')}
+          ${navBtn('tips','💡 Tips')}
+          ${navBtn('logsheet','📋 Log Sheet')}
+          <button onclick="setView('cart')" class="relative whitespace-nowrap px-3 py-1.5 rounded-lg transition-all ${view==='cart'?'bg-indigo-600 text-white':'text-slate-300 hover:text-white hover:bg-slate-800'}">
+            🛒 Cart
+            ${cart.length>0?`<span class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black rounded-full px-1.5 leading-4">${cart.length}</span>`:''}
+          </button>
+        </div>
+      </div>
+    </nav>
+    <main class="container mx-auto px-4 py-6">
+      ${view==='home'    ? renderHome(active, totalCommit)   : ''}
+      ${view==='store'   ? renderStore()                      : ''}
+      ${view==='cart'    ? renderCart()                       : ''}
+      ${view==='checkout'? renderCheckout()                   : ''}
+      ${view==='dashboard'?renderDashboard(active, totalCommit):''}
+      ${view==='addbnpl' ? renderAddBnpl()                    : ''}
+      ${view==='tracker' ? renderTracker()                    : ''}
+      ${view==='insights'? renderInsights()                   : ''}
+      ${view==='tips'    ? renderTips()                       : ''}
+      ${view==='logsheet'? renderLogSheet()                   : ''}
+    </main>
+  `;
+}
+
+function navBtn(v, label){
+  return `<button onclick="setView('${v}')" class="whitespace-nowrap px-3 py-1.5 rounded-lg transition-all ${view===v?'bg-indigo-600 text-white':'text-slate-300 hover:text-white hover:bg-slate-800'}">${label}</button>`;
+}
+
+// ============================================================
+// HOME
+// ============================================================
+function renderHome(active, totalCommit){
+  const util=Math.min((totalCommit/budget)*100,100);
+  const ts=totalSpending();
+  return `
+  <div class="fade-in max-w-4xl mx-auto pb-10 space-y-8">
+    <div class="bg-gradient-to-br from-indigo-900/60 to-violet-900/40 border border-indigo-500/30 rounded-3xl p-8 md:p-10 relative overflow-hidden">
+      <div class="absolute right-8 top-8 text-7xl opacity-20">🎓</div>
+      <p class="text-indigo-300 font-bold text-sm uppercase tracking-widest mb-2">EduCart Smart Finance</p>
+      <h1 class="text-3xl md:text-5xl font-black text-white mb-2">Shop Smart,<br>Stay in Control</h1>
+      <p class="text-slate-300 text-lg mb-6 max-w-md">Track your BNPL, manage your budget, and build better spending habits.</p>
+      <button onclick="setView('store')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-2xl shadow-xl transition transform hover:-translate-y-0.5">Start Shopping →</button>
+    </div>
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-7 shadow-lg">
+      <p class="text-slate-400 text-sm font-bold uppercase tracking-wider mb-1">Total Spending This Month</p>
+      <div class="text-5xl font-black text-white mb-5">$${ts.toFixed(2)}</div>
+      <div class="flex justify-between text-sm text-slate-400 mb-2 font-medium">
+        <span>Monthly Commitment: <span class="text-amber-400 font-bold">$${totalCommit.toFixed(2)}</span></span>
+        <span>Budget: <span class="text-green-400 font-bold">$${budget}</span></span>
+      </div>
+      <div class="w-full bg-slate-900 rounded-full h-4 overflow-hidden border border-slate-700">
+        <div class="h-full rounded-full transition-all duration-700 ${util>80?'bg-red-500':util>50?'bg-amber-500':'bg-indigo-500'}" style="width:${util}%"></div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">${util.toFixed(0)}% of your monthly budget</p>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      ${quickAction('🛍️','My Purchases','store','indigo')}
+      ${quickAction('📅','BNPL Tracker','tracker','violet')}
+      ${quickAction('📊','Spending Insights','insights','blue')}
+      ${quickAction('💡','Financial Tips','tips','amber')}
+    </div>
+    ${active.length>0?`
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-lg">
+      <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">📅 Active BNPL Plans <span class="bg-indigo-600 text-white text-xs font-black px-2.5 py-0.5 rounded-full">${active.length}</span></h3>
+      <div class="space-y-3">
+        ${active.slice(0,3).map(p=>`
+          <div class="flex justify-between items-center bg-slate-900 rounded-xl px-4 py-3 border border-slate-700">
+            <div>
+              <div class="font-bold text-white text-sm">${p.items?p.items.map(i=>i.name).join(', '):p.productName}</div>
+              <div class="text-xs text-slate-400 mt-0.5">${p.paymentsLeft} payments left</div>
+            </div>
+            <div class="text-right">
+              <div class="text-indigo-400 font-black">$${p.installment.toFixed(2)}<span class="text-xs text-slate-500">/mo</span></div>
+              <div class="text-xs text-red-400">$${p.remaining.toFixed(2)} left</div>
+            </div>
+          </div>`).join('')}
+        ${active.length>3?`<button onclick="setView('tracker')" class="text-indigo-400 text-sm font-bold hover:text-indigo-300 transition">View all ${active.length} plans →</button>`:''}
+      </div>
+    </div>`:''}
+  </div>`;
+}
+
+function quickAction(icon, label, dest, color){
+  const colors={indigo:'bg-indigo-900/40 hover:bg-indigo-900/60 border-indigo-700/50 text-indigo-300', violet:'bg-violet-900/40 hover:bg-violet-900/60 border-violet-700/50 text-violet-300', blue:'bg-blue-900/40 hover:bg-blue-900/60 border-blue-700/50 text-blue-300', amber:'bg-amber-900/30 hover:bg-amber-900/50 border-amber-700/50 text-amber-300'};
+  return `<button onclick="setView('${dest}')" class="flex flex-col items-center gap-2 p-5 rounded-2xl border transition-all transform hover:-translate-y-1 ${colors[color]}">
+    <span class="text-3xl">${icon}</span>
+    <span class="font-bold text-sm">${label}</span>
+  </button>`;
+}
+
+// ============================================================
+// STORE
+// ============================================================
+function renderStore(){
+  const cats=['All',...new Set(products.map(p=>p.category))].sort();
+  const fp=selectedCategory==='All'?products:products.filter(p=>p.category===selectedCategory);
+  return `
+  <div class="fade-in pb-10">
+    <div class="mb-8 bg-gradient-to-r from-indigo-900/40 to-violet-900/20 p-8 rounded-3xl border border-indigo-500/20 shadow-lg">
+      <h1 class="text-3xl font-black text-white mb-2">Student Store</h1>
+      <p class="text-slate-300 max-w-xl">Browse ${products.length}+ student essentials. Pay in full or split with EduPay Later.</p>
+    </div>
+    <div class="flex flex-wrap gap-2 mb-8">
+      ${cats.map(c=>`<button onclick="setCategory('${c}')" class="px-4 py-1.5 rounded-full text-xs font-bold transition-all ${selectedCategory===c?'bg-indigo-600 text-white scale-105 shadow-md':'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'}">${c}</button>`).join('')}
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+      ${fp.map(p=>`
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 flex flex-col hover:border-indigo-500/60 hover:shadow-lg hover:shadow-indigo-900/20 transition-all transform hover:-translate-y-1 group">
+          <div class="text-5xl text-center py-7 bg-slate-900 rounded-xl border border-slate-700 mb-4 group-hover:scale-105 transition-transform">${p.img}</div>
+          <span class="text-[10px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-900/30 px-2 py-0.5 rounded w-fit mb-2">${p.category}</span>
+          <h3 class="font-bold text-slate-100 text-sm leading-snug line-clamp-2 min-h-[40px] mb-2">${p.name}</h3>
+          <div class="text-xl font-black text-white mb-1">$${p.price.toFixed(2)}</div>
+          <div class="text-xs text-green-400 mb-4">or 4×$${(p.price/4).toFixed(2)}</div>
+          <button onclick="addToCart(${p.id})" class="mt-auto w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl font-bold text-sm transition active:scale-95">Add to Cart</button>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// CART
+// ============================================================
+function renderCart(){
+  const total=cart.reduce((s,i)=>s+i.price,0);
+  if(!cart.length) return `
+    <div class="text-center py-24 fade-in bg-slate-800 rounded-3xl border border-slate-700">
+      <div class="text-7xl mb-4 opacity-20">🛒</div>
+      <h2 class="text-2xl font-bold text-slate-300">Your cart is empty</h2>
+      <p class="text-slate-500 mt-2 mb-8">Add some items to get started.</p>
+      <button onclick="setView('store')" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-500 transition">Browse Products</button>
+    </div>`;
+  return `
+  <div class="fade-in flex flex-col lg:flex-row gap-8 pb-10">
+    <div class="flex-grow bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-lg">
+      <h2 class="text-2xl font-bold mb-6 text-white">Shopping Cart</h2>
+      <div class="divide-y divide-slate-700">
+        ${cart.map((item,idx)=>`
+          <div class="py-5 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+              <div class="text-4xl bg-slate-900 p-4 rounded-xl border border-slate-700">${item.img}</div>
+              <div><h3 class="font-bold text-slate-100">${item.name}</h3><p class="text-indigo-400 font-black text-lg">$${item.price.toFixed(2)}</p></div>
+            </div>
+            <button onclick="removeFromCart(${idx})" class="text-slate-500 hover:text-red-400 px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 transition font-medium">Remove</button>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="w-full lg:w-72 bg-slate-800 p-7 rounded-2xl border border-slate-700 h-fit sticky top-24">
+      <h3 class="text-xl font-bold mb-5 text-white border-b border-slate-700 pb-4">Summary</h3>
+      <div class="flex justify-between text-slate-400 mb-4"><span>${cart.length} items</span><span>$${total.toFixed(2)}</span></div>
+      <div class="flex justify-between text-3xl font-black text-white border-t border-slate-700 pt-4 mb-6"><span>Total</span><span>$${total.toFixed(2)}</span></div>
+      <button onclick="setView('checkout')" class="w-full bg-green-600 hover:bg-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition">Checkout →</button>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// CHECKOUT
+// ============================================================
+function renderCheckout(){
+  const total=cart.reduce((s,i)=>s+i.price,0);
+  const fee=bnplTerms===6?total*0.05:0;
+  const final=total+fee;
+  const inst=final/bnplTerms;
+  return `
+  <div class="fade-in max-w-2xl mx-auto bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl mb-10">
+    <h2 class="text-3xl font-black mb-8 text-white border-b border-slate-700 pb-5">Secure Checkout</h2>
+    <h3 class="font-bold text-slate-300 mb-4">Payment Method</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+      <div onclick="setCheckoutMethod('bnpl')" class="border-2 p-5 rounded-2xl cursor-pointer transition-all ${checkoutMethod==='bnpl'?'border-indigo-500 bg-indigo-900/25':'border-slate-600 hover:border-slate-500 bg-slate-900/50'}">
+        <div class="font-black text-indigo-300 text-lg flex justify-between mb-2"><span>📅 EduPay Later</span>${checkoutMethod==='bnpl'?'<span class="text-indigo-400">✓</span>':''}</div>
+        <p class="text-sm text-slate-400 mb-4">Split into flexible installments.</p>
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between"><span class="text-slate-400 text-sm font-bold">Pay Today</span><span class="text-indigo-400 font-black text-lg">$${checkoutMethod==='bnpl'?inst.toFixed(2):(total/4).toFixed(2)}</span></div>
+      </div>
+      <div onclick="setCheckoutMethod('card')" class="border-2 p-5 rounded-2xl cursor-pointer transition-all ${checkoutMethod==='card'?'border-indigo-500 bg-indigo-900/25':'border-slate-600 hover:border-slate-500 bg-slate-900/50'}">
+        <div class="font-black text-slate-200 text-lg flex justify-between mb-2"><span>💳 Pay in Full</span>${checkoutMethod==='card'?'<span class="text-indigo-400">✓</span>':''}</div>
+        <p class="text-sm text-slate-400 mb-4">One payment. No future obligations.</p>
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between"><span class="text-slate-400 text-sm font-bold">Pay Today</span><span class="text-white font-black text-lg">$${total.toFixed(2)}</span></div>
+      </div>
+    </div>
+    ${checkoutMethod==='bnpl'?`
+    <div class="mb-8 bg-slate-900/80 p-5 rounded-2xl border border-slate-700">
+      <h4 class="text-sm font-black uppercase tracking-wider text-slate-300 mb-4">Repayment Schedule</h4>
+      <div class="flex gap-4">
+        <button onclick="setBnplTerms(4)" class="flex-1 p-4 rounded-xl border-2 text-left transition-all ${bnplTerms===4?'border-indigo-500 bg-indigo-900/40':'border-slate-700 bg-slate-800 hover:border-slate-500'}">
+          <div class="font-bold text-white mb-1">Pay in 4</div>
+          <div class="text-green-400 text-xs font-bold mb-3">Interest-free ✓</div>
+          <div class="text-2xl font-black text-indigo-300">$${(total/4).toFixed(2)}<span class="text-sm text-slate-500 font-semibold">/mo</span></div>
+        </button>
+        <button onclick="setBnplTerms(6)" class="flex-1 p-4 rounded-xl border-2 text-left transition-all ${bnplTerms===6?'border-indigo-500 bg-indigo-900/40':'border-slate-700 bg-slate-800 hover:border-slate-500'}">
+          <div class="font-bold text-white mb-1">Pay in 6</div>
+          <div class="text-amber-400 text-xs font-bold mb-3">+5% fee applied</div>
+          <div class="text-2xl font-black text-indigo-300">$${((total*1.05)/6).toFixed(2)}<span class="text-sm text-slate-500 font-semibold">/mo</span></div>
+        </button>
+      </div>
+      ${bnplTerms===6?`<p class="text-xs text-amber-400 mt-3 font-medium">⚠ $${fee.toFixed(2)} setup fee added to total.</p>`:''}
+    </div>
+    <div class="mb-8 bg-amber-900/20 border border-amber-700/40 rounded-2xl p-5 flex gap-4">
+      <span class="text-amber-400 text-2xl mt-0.5">💡</span>
+      <div><h4 class="font-bold text-amber-300 mb-1">Financial Awareness</h4><p class="text-sm text-amber-200/80 leading-relaxed">BNPL is not a discount — it's a delayed payment. Ensure this fits your monthly budget before committing.</p></div>
+    </div>`:''}
+    <div class="flex justify-between items-center border-t border-slate-700 pt-6">
+      <button onclick="setView('cart')" class="text-slate-400 hover:text-white font-semibold transition px-4 py-2 rounded-lg hover:bg-slate-700">← Back</button>
+      <button onclick="handleCheckout()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-10 py-4 rounded-2xl font-black text-lg shadow-xl transition transform hover:-translate-y-0.5 active:scale-95">
+        Pay $${checkoutMethod==='bnpl'?inst.toFixed(2):total.toFixed(2)} Now
+      </button>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard(active, totalCommit){
+  const util=(totalCommit/budget)*100;
+  return `
+  <div class="fade-in max-w-5xl mx-auto pb-10 space-y-8">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-5 bg-slate-800 border border-slate-700 p-7 rounded-2xl shadow-lg">
+      <div><h2 class="text-3xl font-black text-white mb-1">Financial Dashboard</h2><p class="text-slate-400">Track spending, manage plans, stay on budget.</p></div>
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex items-center gap-3">
+        ${isEditingBudget?`
+          <div class="flex flex-col gap-1">
+            <span class="text-[10px] text-slate-500 font-bold uppercase">Monthly Budget</span>
+            <div class="flex items-center gap-2">
+              <span class="text-slate-400">$</span>
+              <input type="number" id="budget-input" value="${budget}" class="bg-slate-800 border border-indigo-500 text-white px-3 py-2 rounded-lg w-24 font-bold focus:outline-none">
+              <button onclick="saveBudget()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-bold transition">Save</button>
+            </div>
+          </div>
+        `:`
+          <div class="px-2"><div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Monthly Budget</div><div class="text-2xl font-black text-green-400">$${budget}</div></div>
+          <button onclick="toggleEditBudget()" class="bg-slate-800 hover:bg-slate-700 text-indigo-400 border border-slate-600 px-4 py-3 rounded-xl font-bold transition">✏️</button>
+        `}
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div class="bg-slate-800 border-t-4 border-indigo-500 border-x border-b border-slate-700 p-6 rounded-2xl shadow-lg hover:-translate-y-1 transition transform">
+        <div class="text-xs font-black uppercase text-slate-500 tracking-wider mb-2">Active Plans</div>
+        <div class="text-4xl font-black text-white">${active.length}</div>
+      </div>
+      <div class="bg-slate-800 border-t-4 border-amber-500 border-x border-b border-slate-700 p-6 rounded-2xl shadow-lg hover:-translate-y-1 transition transform">
+        <div class="text-xs font-black uppercase text-slate-500 tracking-wider mb-2">Monthly Commitment</div>
+        <div class="text-4xl font-black text-amber-400">$${totalCommit.toFixed(2)}</div>
+      </div>
+      <div class="bg-slate-800 border-t-4 border-green-500 border-x border-b border-slate-700 p-6 rounded-2xl shadow-lg hover:-translate-y-1 transition transform">
+        <div class="text-xs font-black uppercase text-slate-500 tracking-wider flex justify-between mb-3">Budget Used <span class="${util>80?'text-red-400':util>50?'text-amber-400':'text-green-400'} font-black">${util.toFixed(0)}%</span></div>
+        <div class="w-full bg-slate-900 h-4 rounded-full overflow-hidden border border-slate-700">
+          <div class="h-full rounded-full transition-all duration-700 ${util>80?'bg-red-500':util>50?'bg-amber-500':'bg-green-500'}" style="width:${Math.min(util,100)}%"></div>
+        </div>
+        ${util>100?'<p class="text-xs text-red-400 font-bold mt-2">⚠ Budget exceeded!</p>':''}
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-3">
+      <button onclick="setView('tracker')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold transition shadow-md">📅 BNPL Tracker</button>
+      <button onclick="setView('addbnpl')" class="bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-xl font-bold transition shadow-md">➕ Add BNPL</button>
+      <button onclick="setView('insights')" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition shadow-md">📊 Insights</button>
+    </div>
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-7 shadow-lg">
+      <h3 class="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-4 flex items-center gap-3"><span>📜</span> Purchase History</h3>
+      ${!completedOrders.length?`<p class="text-center text-slate-500 py-8 italic">No completed orders yet.</p>`:`
+        <div class="divide-y divide-slate-700/50">
+          ${completedOrders.map(o=>`
+            <div class="py-4 flex justify-between items-center">
+              <div>
+                <div class="font-bold text-slate-200">${o.items.map(i=>i.name).join(', ')}</div>
+                <div class="text-xs text-slate-500 mt-1 flex gap-2 flex-wrap">
+                  <span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700">🗓 ${o.date}</span>
+                  ${o.completionDate?`<span class="bg-green-900/30 text-green-400 px-2 py-0.5 rounded border border-green-800/50">✅ Done: ${o.completionDate}</span>`:''}
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="font-black text-white text-xl">$${o.total.toFixed(2)}</div>
+                <div class="text-[10px] uppercase font-black px-2.5 py-1 rounded-full mt-1 ${o.type==='Paid in Full'?'bg-blue-900/50 text-blue-300 border border-blue-700/50':'bg-purple-900/50 text-purple-300 border border-purple-700/50'}">✓ ${o.type}</div>
+              </div>
+            </div>`).join('')}
+        </div>`}
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// ADD BNPL PURCHASE
+// ============================================================
+function renderAddBnpl(){
+  const cats=[...new Set(products.map(p=>p.category)),'Other'].sort();
+  const stores=['EduCart','Shopee','Lazada','Amazon','Flipkart','TikTok Shop','Other'];
+  return `
+  <div class="fade-in max-w-xl mx-auto pb-10">
+    <div class="flex items-center gap-3 mb-8">
+      <button onclick="setView('tracker')" class="text-slate-400 hover:text-white transition p-2 rounded-lg hover:bg-slate-800">← Back</button>
+      <h2 class="text-3xl font-black text-white">Add BNPL Purchase</h2>
+    </div>
+    <div class="bg-slate-800 border border-slate-700 rounded-3xl p-8 shadow-2xl space-y-6">
+      <p class="text-slate-400 text-sm">Record a BNPL purchase made on any platform with full installment details.</p>
+      <div>
+        <label class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2">Product / Category</label>
+        <select id="add-category" onchange="addForm.category=this.value" class="w-full bg-slate-900 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 transition">
+          <option value="">Select category</option>
+          ${cats.map(c=>`<option value="${c}" ${addForm.category===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2">Store / Platform</label>
+        <select id="add-store" onchange="addForm.store=this.value" class="w-full bg-slate-900 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 transition">
+          <option value="">Select store</option>
+          ${stores.map(s=>`<option value="${s}" ${addForm.store===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2">Total Amount ($)</label>
+        <input type="number" id="add-amount" value="${addForm.amount}" placeholder="e.g. 300.00" oninput="addForm.amount=this.value" class="w-full bg-slate-900 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 transition placeholder-slate-600">
+      </div>
+      <div>
+        <label class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2">Number of Installments</label>
+        <select id="add-installments" onchange="addForm.installments=this.value" class="w-full bg-slate-900 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 transition">
+          ${[3,4,6,8,12].map(n=>`<option value="${n}" ${addForm.installments==n?'selected':''}>${n} installments</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2">First Payment Date</label>
+        <input type="date" id="add-date" value="${addForm.date}" onchange="addForm.date=this.value" class="w-full bg-slate-900 border border-slate-600 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 transition">
+      </div>
+      ${addForm.amount&&parseFloat(addForm.amount)>0?`
+      <div class="bg-indigo-900/30 border border-indigo-700/50 rounded-xl p-4">
+        <div class="text-xs font-black uppercase text-indigo-400 mb-2">Preview</div>
+        <div class="flex justify-between text-sm"><span class="text-slate-400">Per installment:</span><span class="font-black text-indigo-300 text-lg">$${(parseFloat(addForm.amount)/(parseInt(addForm.installments)||4)).toFixed(2)}</span></div>
+        <div class="flex justify-between text-sm mt-1"><span class="text-slate-400">Total:</span><span class="font-bold text-white">$${parseFloat(addForm.amount).toFixed(2)}</span></div>
+      </div>`:''}
+      <button onclick="submitAddForm()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-2xl font-black text-lg shadow-xl transition transform hover:-translate-y-0.5 active:scale-95">Add Purchase →</button>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// BNPL TRACKER
+// ============================================================
+function renderTracker(){
+  const ongoing=[...bnplPlans,...manualBnpl];
+  const completed=completedOrders;
+  return `
+  <div class="fade-in max-w-3xl mx-auto pb-10">
+    <div class="flex justify-between items-center mb-8">
+      <h2 class="text-3xl font-black text-white">BNPL Tracker</h2>
+      <button onclick="setView('addbnpl')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-md flex items-center gap-2">➕ Add New</button>
+    </div>
+    <div class="flex bg-slate-800 border border-slate-700 rounded-2xl p-1.5 mb-8">
+      <button onclick="setTrackerTab('ongoing')" class="flex-1 py-2.5 rounded-xl font-bold transition-all ${trackerTab==='ongoing'?'bg-indigo-600 text-white shadow':'text-slate-400 hover:text-white'}">
+        Ongoing ${ongoing.length>0?`<span class="ml-1 bg-white/20 px-2 rounded-full text-xs">${ongoing.length}</span>`:''}
+      </button>
+      <button onclick="setTrackerTab('completed')" class="flex-1 py-2.5 rounded-xl font-bold transition-all ${trackerTab==='completed'?'bg-indigo-600 text-white shadow':'text-slate-400 hover:text-white'}">
+        Completed ${completed.length>0?`<span class="ml-1 bg-white/20 px-2 rounded-full text-xs">${completed.length}</span>`:''}
+      </button>
+    </div>
+    ${trackerTab==='ongoing'?`
+      ${!ongoing.length?`
+        <div class="text-center py-16 bg-slate-800 rounded-2xl border border-slate-700 border-dashed">
+          <div class="text-6xl mb-4 opacity-30">📅</div>
+          <p class="text-xl text-slate-300 font-bold mb-2">No ongoing plans</p>
+          <p class="text-slate-500 text-sm mb-6">Your finances are clear!</p>
+          <button onclick="setView('addbnpl')" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-500 transition">+ Add BNPL Purchase</button>
+        </div>`:`
+        <div class="space-y-5">
+          ${ongoing.map(plan=>{
+            const label=plan.items?plan.items.map(i=>i.name).join(', '):plan.productName;
+            const progress=((plan.terms-plan.paymentsLeft)/plan.terms)*100;
+            return `
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-lg hover:border-indigo-500/40 transition-all">
+              <div class="flex justify-between items-start mb-5">
+                <div>
+                  <div class="font-black text-white text-lg mb-1">${label}</div>
+                  <div class="flex flex-wrap gap-2 text-xs">
+                    <span class="bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded border border-indigo-700/50 font-bold">${plan.terms} installments</span>
+                    <span class="bg-slate-900 text-slate-400 px-2 py-0.5 rounded border border-slate-700">${plan.date}</span>
+                    ${plan.store?`<span class="bg-slate-900 text-slate-400 px-2 py-0.5 rounded border border-slate-700">📦 ${plan.store}</span>`:''}
+                  </div>
+                </div>
+                <div class="text-right ml-4">
+                  <div class="text-2xl font-black text-indigo-400">$${plan.installment.toFixed(2)}</div>
+                  <div class="text-xs text-slate-500 font-medium">per month</div>
+                </div>
+              </div>
+              <div class="flex gap-4 mb-4">
+                <div class="flex-1 bg-slate-900 rounded-xl p-3 border border-slate-700 text-center">
+                  <div class="text-[10px] uppercase font-black text-slate-500 mb-1">Payments Left</div>
+                  <div class="font-black text-white">${plan.paymentsLeft}<span class="text-slate-500 font-medium text-xs"> of ${plan.terms}</span></div>
+                </div>
+                <div class="flex-1 bg-slate-900 rounded-xl p-3 border border-slate-700 text-center">
+                  <div class="text-[10px] uppercase font-black text-slate-500 mb-1">Amount Left</div>
+                  <div class="font-black text-red-400">$${plan.remaining.toFixed(2)}</div>
+                </div>
+                <div class="flex-1 bg-slate-900 rounded-xl p-3 border border-slate-700 text-center">
+                  <div class="text-[10px] uppercase font-black text-slate-500 mb-1">Total</div>
+                  <div class="font-black text-slate-200">$${plan.total.toFixed(2)}</div>
+                </div>
+              </div>
+              <div class="mb-4">
+                <div class="flex justify-between text-xs text-slate-500 mb-1.5 font-medium"><span>Progress</span><span>${progress.toFixed(0)}% paid</span></div>
+                <div class="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-700">
+                  <div class="h-full bg-indigo-500 rounded-full transition-all duration-700" style="width:${progress}%"></div>
+                </div>
+              </div>
+              <div class="text-xs text-slate-400 mb-4 font-medium">
+                📆 Next payment: <span class="text-white font-bold">$${plan.installment.toFixed(2)}</span>
+                &nbsp;•&nbsp; <span class="text-red-400 font-bold">$${plan.remaining.toFixed(2)} left</span>
+              </div>
+              <div class="flex gap-3">
+                <button onclick="makeBnplPayment(${plan.id}, ${!!plan.productName})" class="flex-1 bg-slate-700 hover:bg-slate-600 border border-slate-500 text-white px-4 py-3 rounded-xl font-bold text-sm transition active:scale-95">Pay 1 Installment</button>
+                <button onclick="payOffAll(${plan.id}, ${!!plan.productName})" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-xl font-bold text-sm transition active:scale-95">Pay All ($${plan.remaining.toFixed(2)})</button>
+              </div>
+            </div>`;}).join('')}
+        </div>`}
+    `:`
+      ${!completed.length?`<div class="text-center py-16 bg-slate-800 rounded-2xl border border-slate-700 border-dashed"><div class="text-6xl mb-4 opacity-30">✅</div><p class="text-xl text-slate-300 font-bold">No completed plans yet.</p></div>`:`
+        <div class="space-y-4">
+          ${completed.map(o=>`
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow flex justify-between items-center hover:border-green-500/30 transition">
+              <div>
+                <div class="font-bold text-slate-100 mb-1">${o.items.map(i=>i.name).join(', ')}</div>
+                <div class="flex flex-wrap gap-2 text-xs">
+                  <span class="bg-slate-900 text-slate-400 px-2 py-0.5 rounded border border-slate-700">🛒 ${o.date}</span>
+                  ${o.completionDate?`<span class="bg-green-900/30 text-green-400 px-2 py-0.5 rounded border border-green-800/50">✅ ${o.completionDate}</span>`:''}
+                </div>
+              </div>
+              <div class="text-right ml-4">
+                <div class="font-black text-white text-xl">$${o.total.toFixed(2)}</div>
+                <div class="text-[10px] uppercase font-black px-2.5 py-1 rounded-full mt-1 ${o.type==='Paid in Full'?'bg-blue-900/50 text-blue-300':'bg-purple-900/50 text-purple-300'}">✓ ${o.type}</div>
+              </div>
+            </div>`).join('')}
+        </div>`}
+    `}
+  </div>`;
+}
+
+// ============================================================
+// SPENDING INSIGHTS
+// ============================================================
+function renderInsights(){
+  const catData=spendingByCategory();
+  const catEntries=Object.entries(catData).sort((a,b)=>b[1]-a[1]);
+  const ts=catEntries.reduce((s,[,v])=>s+v,0);
+  const colors=['#818cf8','#a78bfa','#60a5fa','#34d399','#fb923c','#f472b6','#facc15','#94a3b8'];
+  const r=80, cx=100, cy=100, circumference=2*Math.PI*r;
+  let offset=0;
+  const segments=catEntries.map(([cat,amt],i)=>{
+    const pct=ts>0?amt/ts:0;
+    const dash=pct*circumference;
+    const seg=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[i%colors.length]}" stroke-width="28" stroke-dasharray="${dash} ${circumference-dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})" opacity="0.9"/>`;
+    offset+=dash;
+    return seg;
+  });
+  const months=['Apr','May','Jun','Jul','Aug','Sep'];
+  const fakeData=[180,240,310,220,280,ts>0?ts:450];
+  const maxBar=Math.max(...fakeData,1);
+  return `
+  <div class="fade-in max-w-3xl mx-auto pb-10 space-y-8">
+    <h2 class="text-3xl font-black text-white">Spending Insights</h2>
+    <div class="flex bg-slate-800 border border-slate-700 rounded-2xl p-1.5">
+      ${['month','3months','year'].map((p,i)=>`<button onclick="setInsightsPeriod('${p}')" class="flex-1 py-2.5 rounded-xl font-bold transition-all text-sm ${insightsPeriod===p?'bg-indigo-600 text-white shadow':'text-slate-400 hover:text-white'}">${['This Month','Last 3 Months','This Year'][i]}</button>`).join('')}
+    </div>
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-lg">
+      <h3 class="text-xl font-bold text-white mb-6">Spending by Category</h3>
+      ${ts===0?`<div class="text-center py-12 text-slate-500 italic">No spending data yet. Start shopping or add BNPL purchases!</div>`:`
+      <div class="flex flex-col md:flex-row items-center gap-8">
+        <div class="relative flex-shrink-0">
+          <svg width="200" height="200" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#1e293b" stroke-width="28"/>
+            ${segments.join('')}
+            <text x="100" y="95" text-anchor="middle" fill="#f1f5f9" font-size="14" font-weight="900">$${ts.toFixed(0)}</text>
+            <text x="100" y="114" text-anchor="middle" fill="#94a3b8" font-size="10">Total</text>
+          </svg>
+        </div>
+        <div class="flex-grow w-full space-y-3">
+          ${catEntries.map(([cat,amt],i)=>{
+            const pct=ts>0?(amt/ts*100):0;
+            return `
+            <div class="flex items-center gap-3">
+              <div class="w-3 h-3 rounded-full flex-shrink-0" style="background:${colors[i%colors.length]}"></div>
+              <div class="flex-grow">
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="font-bold text-slate-200">${cat}</span>
+                  <span class="font-black text-white">${pct.toFixed(0)}% <span class="text-slate-400 font-normal">$${amt.toFixed(0)}</span></span>
+                </div>
+                <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                  <div class="h-full rounded-full transition-all duration-700" style="width:${pct}%;background:${colors[i%colors.length]}"></div>
+                </div>
+              </div>
+            </div>`}).join('')}
+        </div>
+      </div>`}
+    </div>
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-lg">
+      <h3 class="text-xl font-bold text-white mb-6">Monthly Spending Trend</h3>
+      <div class="flex items-end gap-3 h-52 justify-around">
+        ${months.map((m,i)=>{
+          const h=Math.round((fakeData[i]/maxBar)*100);
+          const isLast=i===months.length-1;
+          return `
+          <div class="flex flex-col items-center gap-2 flex-1">
+            <div class="text-xs text-slate-400 font-bold">$${fakeData[i].toFixed(0)}</div>
+            <div class="w-full rounded-t-lg transition-all duration-700 ${isLast?'bg-indigo-500':'bg-indigo-900/60'}" style="height:${h}%"></div>
+            <div class="text-xs font-bold ${isLast?'text-indigo-400':'text-slate-500'}">${m}</div>
+          </div>`;}).join('')}
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 text-center shadow">
+        <div class="text-slate-400 text-xs font-black uppercase mb-2">Avg Monthly</div>
+        <div class="text-2xl font-black text-white">$${(fakeData.reduce((s,v)=>s+v,0)/6).toFixed(0)}</div>
+      </div>
+      <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 text-center shadow">
+        <div class="text-slate-400 text-xs font-black uppercase mb-2">Highest Month</div>
+        <div class="text-2xl font-black text-amber-400">$${Math.max(...fakeData).toFixed(0)}</div>
+      </div>
+      <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 text-center shadow">
+        <div class="text-slate-400 text-xs font-black uppercase mb-2">BNPL Ratio</div>
+        <div class="text-2xl font-black text-indigo-400">${ts>0?Math.round((allActivePlans().reduce((s,p)=>s+p.total,0)/ts)*100):0}%</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// FINANCIAL TIPS
+// ============================================================
+function renderTips(){
+  const basics=[
+    { icon:'📄', title:'Understand BNPL Terms', body:'Read the terms, fees, and repayment schedule before using any BNPL service. Understand what happens if you miss a payment.' },
+    { icon:'💸', title:"It's a Delay, Not a Discount", body:"BNPL allows you to delay payment. It does NOT reduce the actual cost of your purchase. You still owe the full amount." },
+    { icon:'📊', title:'Know Your Total Cost', body:'For long-term BNPL plans with fees (like our 6-month option), you pay more than the original price. Always calculate the true cost.' },
+    { icon:'🔔', title:'Check for Late Fees', body:'Missing a payment can trigger late fees and negatively impact your credit score. Set reminders before every due date.' },
+  ];
+  const smart=[
+    { icon:'📋', title:'Track All Your Payments', body:'Keep track of multiple BNPL purchases to avoid missing payments. Use the BNPL Tracker in this app to stay organized.' },
+    { icon:'💰', title:'Spend Within Your Budget', body:'Use BNPL only for planned and essential purchases. Set a clear monthly budget and stick to it using our Budget tool.' },
+    { icon:'🚫', title:'Avoid Stacking Plans', body:"Don't accumulate too many active BNPL plans at once. Each one is a commitment that reduces your monthly cash flow." },
+    { icon:'🎯', title:'Prioritize Needs Over Wants', body:'Before adding any item to your cart, ask: "Do I need this?" BNPL makes it easy to overspend on impulse items.' },
+  ];
+  const life=[
+    { icon:'🎓', title:'Student Budget Reality', body:"As a student, your income is limited. BNPL plans that exceed 30% of your monthly income can create serious financial stress." },
+    { icon:'⚡', title:'Impulse Buying Risk', body:'Research shows BNPL users spend up to 20% more per transaction compared to cash buyers due to the "pay later" psychological effect.' },
+    { icon:'📈', title:'Build Healthy Habits Early', body:"The financial habits you form in college follow you into adulthood. Practice saying no to unnecessary BNPL commitments now." },
+    { icon:'🤝', title:'Seek Financial Advice', body:"If you're struggling with multiple BNPL plans, speak to your university's student financial advisor. Help is available." },
+  ];
+  const currentTips=tipsTab==='basics'?basics:tipsTab==='smart'?smart:life;
+  const tabLabels=[['basics','📋 BNPL Basics'],['smart','💡 Smart Tips'],['life','🎓 Student Life']];
+  return `
+  <div class="fade-in max-w-3xl mx-auto pb-10 space-y-8">
+    <div class="bg-gradient-to-r from-amber-900/30 to-orange-900/20 border border-amber-700/30 rounded-3xl p-8">
+      <h2 class="text-3xl font-black text-white mb-2">Financial Tips & Awareness</h2>
+      <p class="text-amber-200/80">Educate yourself about BNPL terms, repayment obligations, and smart student spending behaviour.</p>
+    </div>
+    <div class="flex bg-slate-800 border border-slate-700 rounded-2xl p-1.5">
+      ${tabLabels.map(([t,l])=>`<button onclick="setTipsTab('${t}')" class="flex-1 py-2.5 rounded-xl font-bold transition-all text-sm ${tipsTab===t?'bg-amber-600 text-white shadow':'text-slate-400 hover:text-white'}">${l}</button>`).join('')}
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      ${currentTips.map(tip=>`
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow hover:border-amber-500/30 transition-all hover:-translate-y-1 transform">
+          <div class="text-3xl mb-3">${tip.icon}</div>
+          <h4 class="font-black text-white text-lg mb-2">${tip.title}</h4>
+          <p class="text-slate-400 text-sm leading-relaxed">${tip.body}</p>
+        </div>`).join('')}
+    </div>
+    <div class="bg-red-900/20 border border-red-700/40 rounded-2xl p-6 flex gap-4 items-start">
+      <span class="text-red-400 text-3xl">⚠️</span>
+      <div>
+        <h4 class="font-black text-red-300 text-lg mb-2">Important Reminder</h4>
+        <p class="text-red-200/80 text-sm leading-relaxed">BNPL services are financial products, not free money. Always read the full terms and conditions, understand the repayment schedule, and only use BNPL when you are confident you can meet all future payment obligations without financial strain.</p>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// LOG SHEET
+// ============================================================
+function renderLogSheet(){
+  return `
+  <div class="fade-in max-w-4xl mx-auto pb-12 space-y-10">
+    <div class="bg-gradient-to-br from-indigo-900/50 to-violet-900/30 border border-indigo-500/30 rounded-3xl p-10 relative overflow-hidden">
+      <div class="absolute top-0 right-0 text-9xl opacity-10 -mr-6 -mt-6">📋</div>
+      <h2 class="text-4xl font-black text-white mb-3">CA3.2 Log Sheet</h2>
+      <p class="text-indigo-200 text-lg">Concept Prototype & Feedback Log — "Excellent" grade documentation.</p>
+    </div>
+    ${logSection('🎯','Concept, Purpose, and Function','blue',`
+      <div class="space-y-5 text-slate-300 text-lg leading-relaxed">
+        <p><strong class="text-white text-xl block mb-1">Concept</strong>EduCart is a comprehensive digital prototype of a student-focused e-commerce platform featuring fully integrated, interactive BNPL functionality, designed to study and visualise student spending behaviour.</p>
+        <p><strong class="text-white text-xl block mb-1">Purpose</strong>To demonstrate how deferred payment lowers the immediate financial barrier for students, increases purchase frequency, and poses impulse-buying risks — while providing tools (dashboard, tracker, insights) to promote financial awareness.</p>
+        <p><strong class="text-white text-xl block mb-1">Function</strong>Users can browse 35+ products, filter by category, choose BNPL or full-payment checkout with variable terms (Pay in 4 vs 6), manually record external BNPL purchases, track ongoing/completed plans, analyse category-wise spending with visual charts, edit their monthly budget, and read curated financial tips.</p>
+      </div>`)}
+    ${logSection('🗣️','User Feedback Collection & Incorporation','green',`
+      <p class="text-slate-400 italic mb-6">Structured walkthrough sessions conducted with 4 stakeholders. All feedback was incorporated into functional improvements.</p>
+      <div class="overflow-x-auto rounded-2xl border border-slate-700 bg-slate-900/50">
+        <table class="min-w-full text-sm text-slate-300">
+          <thead><tr class="bg-slate-900">
+            <th class="p-4 border-b border-slate-700 font-black uppercase text-xs text-left">Stakeholder</th>
+            <th class="p-4 border-b border-slate-700 font-black uppercase text-xs text-left">Feedback</th>
+            <th class="p-4 border-b border-slate-700 font-black uppercase text-xs text-left">Improvement Made</th>
+          </tr></thead>
+          <tbody class="divide-y divide-slate-700/50">
+            ${[['Student A','I want to track BNPL from other platforms, not just in-app purchases.','Added "Add BNPL Purchase" form supporting any store/platform.'],['Student C','I need to make installments one-by-one and edit my budget dynamically.','Implemented "Pay 1 Installment" and editable Monthly Budget.'],['Peer Reviewer B','I need longer repayment terms for expensive items.','Added variable BNPL terms (Pay in 4 vs Pay in 6 with 5% fee).'],['Faculty Mentor','The app needs spending visualizations and financial education.','Added Spending Insights (donut chart, bar chart) and Financial Tips section.']].map(([s,f,i])=>`<tr class="hover:bg-slate-800 transition"><td class="p-4 font-bold text-white whitespace-nowrap">${s}</td><td class="p-4">"${f}"</td><td class="p-4 text-green-400 font-semibold bg-green-900/10">${i}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`)}
+    ${logSection('❌','Reflection on Rejected Ideas','red',`
+      <div class="space-y-5">
+        ${[['Gamified Credit Scores','A rising student credit score rewarded by BNPL repayments.','It unintentionally encouraged students to take on more debt to "level up", contradicting the core financial wellness message.'],['Automatic Late Fee Simulation','A timer that auto-charges late fees when simulated payments are missed.','Walkthroughs found this confusing. Focus shifted to proactive financial awareness (Tips + Tracker) rather than punitive mechanics.'],["Social Comparison Feature","Show how peer spending compares to the user's own spending.","Privacy concerns and the risk of encouraging over-spending to 'keep up' with peers made this counterproductive to the app's purpose."]].map(([t,idea,why])=>`<div class="bg-slate-900/50 p-5 rounded-xl border border-slate-700"><h4 class="font-black text-white text-lg mb-1 flex items-center gap-2"><span class="text-red-400">✗</span>${t}</h4><p class="text-slate-400 text-sm mb-2"><span class="text-slate-300 font-semibold">Idea:</span> ${idea}</p><p class="text-slate-400 text-sm"><span class="text-slate-300 font-semibold">Why rejected:</span> ${why}</p></div>`).join('')}
+      </div>`)}
+    ${logSection('🧠','Deep Reflection','purple',`
+      <div class="space-y-6">
+        <div><h4 class="text-xl font-black text-purple-300 mb-3">Learning & Mindset Shift</h4><div class="p-6 bg-purple-900/15 border border-purple-500/20 rounded-xl text-slate-300 leading-relaxed">Building this prototype fundamentally changed our perspective on BNPL. We initially treated it as a payment option — but through design and user sessions, we understood it as a behavioural trigger that alters how students perceive value and affordability. Designing the Financial Awareness Tip mid-checkout and the Spending Insights charts taught us that transparency and friction are powerful tools against impulsive spending.</div></div>
+        <div><h4 class="text-xl font-black text-purple-300 mb-3">Iteration Challenges</h4><div class="p-6 bg-slate-900/50 border border-slate-700 rounded-xl text-slate-300 leading-relaxed">The greatest challenge was building a truly interactive and stateful app using only vanilla JavaScript — without React or Vue. Managing shared state across 9+ views while keeping the UI reactive required disciplined state architecture. Building the SVG donut chart and bar chart from scratch (without chart libraries) to visualise spending data accurately was a particular highlight of our technical iteration.</div></div>
+      </div>`)}
+  </div>`;
+}
+
+function logSection(icon, title, color, content){
+  const c={blue:'bg-blue-500',green:'bg-green-500',red:'bg-red-500',purple:'bg-purple-500'};
+  return `<div class="bg-slate-800 rounded-3xl border border-slate-700 p-8 md:p-10 relative overflow-hidden shadow-xl"><div class="absolute left-0 top-0 w-2 h-full ${c[color]} rounded-l-3xl"></div><h3 class="text-2xl font-black text-white mb-6 flex items-center gap-3"><span class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-2xl">${icon}</span>${title}</h3>${content}</div>`;
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+window.onload = render;
+</script>
+</body>
+</html>
